@@ -20,30 +20,6 @@ void print_help_and_exit(void) {
     exit(0);
 }
 
-//
-// read_instruction
-//
-//  returns true if an instruction was read successfully
-//
-bool read_instruction(proc_inst_t* p_inst)
-{
-    int ret;
-    
-    if (p_inst == NULL)
-    {
-        fprintf(stderr, "Fetch requires a valid pointer to populate\n");
-        return false;
-    }
-    
-    ret = fscanf(stdin, "%x %d %d %d %d\n", &p_inst->instruction_address,
-                 &p_inst->op_code, &p_inst->dest_reg, &p_inst->src_reg[0], &p_inst->src_reg[1]); 
-    if (ret != 5) {
-        return false;
-    }
-    
-    return true;
-}
-
 void print_statistics(proc_stats_t* p_stats);
 
 int main(int argc, char* argv[]) {
@@ -102,14 +78,15 @@ int main(int argc, char* argv[]) {
     printf("\n");
 
     /* Setup the processor */
-    setup_proc(d, k0, k1, k2, f, m);
+    proc_t proc;
+    setup_proc(&proc, inFile, d, k0, k1, k2, f, m);
 
     /* Setup statistics */
     proc_stats_t stats;
     memset(&stats, 0, sizeof(proc_stats_t));
 
     /* Run the processor */
-    run_proc(&stats);
+    run_proc(&proc, &stats);
 
     /* Finalize stats */
     complete_proc(&stats);
