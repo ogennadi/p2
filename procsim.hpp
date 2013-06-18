@@ -30,21 +30,6 @@ typedef struct _proc_inst_t
     bool    null;  // whether this is a malformed or nonexistent instruction
 } proc_inst_t;
 
-typedef struct _proc
-{
-  uint32_t cycle;
-  uint64_t f;
-  uint64_t m;
-  uint64_t k0;
-  uint64_t k1;
-  uint64_t k2;
-  uint64_t d;
-  FILE*     in_file;
-  bool    debug; // whether to run in debug mode
-
-} proc_t;
-
-  deque<proc_inst_t> dispatch_q;
 typedef struct _proc_stats_t
 {
     float avg_inst_fire;
@@ -54,10 +39,10 @@ typedef struct _proc_stats_t
     float perc_branch_pred;
 } proc_stats_t;
 
-proc_inst_t read_instruction(proc_t* proc);
+proc_inst_t read_instruction();
 
-void setup_proc(proc_t* proc, FILE* in_file, uint64_t d, uint64_t k0, uint64_t k1, uint64_t k2, uint64_t f, uint64_t m);
-void run_proc(proc_t* proc, proc_stats_t* p_stats);
+void setup_proc(FILE* in_file, uint64_t d, uint64_t k0, uint64_t k1, uint64_t k2, uint64_t f, uint64_t m);
+void run_proc(proc_stats_t* p_stats);
 void complete_proc(proc_stats_t* p_stats);
 
 #endif /* PROCSIM_HPP */

@@ -1,17 +1,26 @@
 #include "procsim.hpp"
 
+
+// Simulator variables
+uint32_t cycle;
+uint64_t f;
+uint64_t m;
+uint64_t k0;
+uint64_t k1;
+uint64_t k2;
+uint64_t d;
+FILE*     in_file;
+bool    debug_mode; // whether to run in debug mode
+deque<proc_inst_t> dispatch_q;
 //
 // read_instruction
 //
-proc_inst_t read_instruction(proc_t* proc)
+proc_inst_t read_instruction()
 {
-    static int line_number = 1;
+    static int  line_number = 1;
     proc_inst_t p_inst;
-
-    int ret;
-    
-    ret = fscanf(proc->in_file, "%x %d %d %d %d", &p_inst.instruction_address,
-                 &p_inst.op_code, &p_inst.dest_reg, &p_inst.src_reg1, &p_inst.src_reg2); 
+    int         ret = fscanf(in_file, "%x %d %d %d %d", &p_inst.instruction_address,
+                      &p_inst.op_code, &p_inst.dest_reg, &p_inst.src_reg1, &p_inst.src_reg2); 
 
     if (ret != 5){
       fprintf(stderr, "bad instruction\n");
@@ -21,11 +30,12 @@ proc_inst_t read_instruction(proc_t* proc)
     }
 
     char debug_mark[3];
-    fgets(debug_mark, 3, proc->in_file);
+    fgets(debug_mark, 3, in_file);
 
     if(debug_mark != NULL && strlen(debug_mark) > 1)
     {
-      proc->debug = true;
+      printf("got here\n");
+      debug_mode = true;
     }
     
     p_inst.line_number = line_number;
@@ -37,25 +47,25 @@ proc_inst_t read_instruction(proc_t* proc)
  * Subroutine for initializing the processor. You many add and initialize any global or heap
  * variables as needed.
  */
-void setup_proc(proc_t* proc, FILE* in_file, uint64_t d, uint64_t k0, uint64_t k1, uint64_t k2, uint64_t f, uint64_t m)
+void setup_proc(FILE* iin_file, uint64_t id, uint64_t ik0, uint64_t ik1, uint64_t ik2, uint64_t fi, uint64_t im)
 {
-  proc->cycle = 0;
-  proc->debug = false;
-  proc->d     = d;
-  proc->k0    = k0;
-  proc->k1    = k1;
-  proc->k2    = k2;
-  proc->f     = f;
-  proc->m     = m;
-  proc->in_file = in_file;
+  cycle = 0;
+  debug_mode = false;
+  d     = id;
+  k0    = ik0;
+  k1    = ik1;
+  k2    = ik2;
+  f     = fi;
+  m     = im;
+  in_file = iin_file;
 }
 
 // Fetch stage
-void fetch(proc_t* proc)
+void fetch()
 {
-  for(uint32_t i = 0; i < proc->f; i++)
+  for(uint32_t i = 0; i < f; i++)
   {
-    proc_inst_t inst = read_instruction(proc);
+    proc_inst_t inst = read_instruction();
     
     if(inst.null){
       return;
@@ -66,7 +76,7 @@ void fetch(proc_t* proc)
 }
 
 // status update stage
-void status_update(proc_t* proc)
+void status_update()
 {
   while(!dispatch_q.empty())
   {
@@ -75,7 +85,7 @@ void status_update(proc_t* proc)
 }
 
 // Pauses simulation execution and prints processor state
-void debug(proc_t* proc)
+void debug()
 {
   printf("schedule Q: ");
 
@@ -94,18 +104,22 @@ void debug(proc_t* proc)
  * Subroutine that simulates the processor.
  *   The processor should fetch instructions as appropriate, until all instructions have executed
  */
-void run_proc(proc_t* proc, proc_stats_t* p_stats)
+void run_proc(proc_stats_t* p_stats)
 {
   do
   {
-    status_update(proc);
-    fetch(proc);
+    printf("cycle %u\n", cycle);
+    status_update();
+    fetch();
 
-    if(proc->debug)
+    if(debug_mode)
     {
-      proc->debug = false;
-      debug(proc);
+      debug_mode = false;
+      debug();
     }
+
+    cycle++;
+
   }while(!dispatch_q.empty());
 }
 

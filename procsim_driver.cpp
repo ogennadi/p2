@@ -78,15 +78,14 @@ int main(int argc, char* argv[]) {
     printf("\n");
 
     /* Setup the processor */
-    proc_t proc;
-    setup_proc(&proc, inFile, d, k0, k1, k2, f, m);
+    setup_proc(inFile, d, k0, k1, k2, f, m);
 
     /* Setup statistics */
     proc_stats_t stats;
     memset(&stats, 0, sizeof(proc_stats_t));
 
     /* Run the processor */
-    run_proc(&proc, &stats);
+    run_proc(&stats);
 
     /* Finalize stats */
     complete_proc(&stats);
