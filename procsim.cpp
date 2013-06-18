@@ -13,16 +13,16 @@ proc_inst_t read_instruction(proc_t* proc)
                  &p_inst.op_code, &p_inst.dest_reg, &p_inst.src_reg[0], &p_inst.src_reg[1]); 
 
     char debug_mark[3];
+    fgets(debug_mark, 3, proc->in_file);
 
-    if(strlen(fgets(debug_mark, 3, proc->in_file)) > 1)
+    if(debug_mark != NULL && strlen(debug_mark) > 1)
     {
       proc->debug = true;
     }
-
     
     if (ret != 5){
       fprintf(stderr, "bad instruction\n");
-      exit(1);
+      exit(0);
     }
     
     p_inst.line_number = line_number;
@@ -58,7 +58,8 @@ void run_proc(proc_t* proc, proc_stats_t* p_stats)
   while(true)
   {
     i = read_instruction(proc);
-    printf("%u\t%i\t%i\t%i\t%i\t%i\t", i.line_number, i.instruction_address, i.op_code, i.dest_reg, i.src_reg[0], i.src_reg[1]);
+    
+    //printf("%u\t%i\t%i\t%i\t%i\t%i\t", i.line_number, i.instruction_address, i.op_code, i.dest_reg, i.src_reg[0], i.src_reg[1]);
 
     if(proc->debug)
     {
@@ -66,7 +67,7 @@ void run_proc(proc_t* proc, proc_stats_t* p_stats)
       proc->debug = false;
     }
 
-    printf("\n");
+    //printf("\n");
   }
 }
 
