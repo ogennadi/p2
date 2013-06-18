@@ -1,2 +1,3 @@
 procsim
 *.o
+traces/fakegcc.trace

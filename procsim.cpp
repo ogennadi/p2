@@ -1,5 +1,11 @@
+#include <cstdarg>
 #include "procsim.hpp"
 
+#define FETCH 0
+#define DISP 1
+#define SCHED 2
+#define EXEC 3
+#define STATE 4
 
 // Simulator variables
 uint32_t cycle;
@@ -12,6 +18,8 @@ uint64_t d;
 FILE*     in_file;
 bool    debug_mode; // whether to run in debug mode
 deque<proc_inst_t> dispatch_q;
+bool    verbose;  // show debug output
+
 //
 // read_instruction
 //
@@ -23,8 +31,8 @@ proc_inst_t read_instruction()
                       &p_inst.op_code, &p_inst.dest_reg, &p_inst.src_reg1, &p_inst.src_reg2); 
 
     if (ret != 5){
-      fprintf(stderr, "bad instruction\n");
       p_inst.null = true;
+      return p_inst;
     }else{
       p_inst.null = false;
     }
@@ -34,7 +42,6 @@ proc_inst_t read_instruction()
 
     if(debug_mark != NULL && strlen(debug_mark) > 1)
     {
-      printf("got here\n");
       debug_mode = true;
     }
     
@@ -58,6 +65,7 @@ void setup_proc(FILE* iin_file, uint64_t id, uint64_t ik0, uint64_t ik1, uint64_
   f     = fi;
   m     = im;
   in_file = iin_file;
+  verbose = true;
 }
 
 // Fetch stage
@@ -70,6 +78,7 @@ void fetch()
     if(inst.null){
       return;
     }else{
+      inst.entry_time[FETCH] = cycle;
       dispatch_q.push_back(inst);
     }
   }
@@ -80,6 +89,8 @@ void status_update()
 {
   while(!dispatch_q.empty())
   {
+    proc_inst_t i = dispatch_q.front();
+    dout("%u\t%u\n", i.line_number, i.entry_time[FETCH]);
     dispatch_q.pop_front();
   }
 }
@@ -106,9 +117,10 @@ void debug()
  */
 void run_proc(proc_stats_t* p_stats)
 {
+  dout("INST\tFETCH\tDISP\tSCHED\tEXEC\tSTATE\n");
+
   do
   {
-    printf("cycle %u\n", cycle);
     status_update();
     fetch();
 
@@ -119,7 +131,6 @@ void run_proc(proc_stats_t* p_stats)
     }
 
     cycle++;
-
   }while(!dispatch_q.empty());
 }
 
@@ -131,4 +142,16 @@ void run_proc(proc_stats_t* p_stats)
  * @p_stats Pointer to the statistics structure
  */
 void complete_proc(proc_stats_t *p_stats) {
+}
+
+// Prints FMT only if verbose flag is set
+void dout(char* fmt, ...)
+{
+  if(verbose)
+  {
+    va_list args;
+    va_start(args,fmt);
+    vprintf(fmt,args);
+    va_end(args);
+  }
 }
