@@ -44,5 +44,5 @@ void setup_proc(FILE* in_file, uint64_t d, uint64_t k0, uint64_t k1, uint64_t k2
 void run_proc(proc_stats_t* p_stats);
 void complete_proc(proc_stats_t* p_stats);
 
-void dout(char* fmt, ...);
+void dout(const char* fmt, ...);
 #endif /* PROCSIM_HPP */

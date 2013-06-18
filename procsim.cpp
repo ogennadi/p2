@@ -113,6 +113,7 @@ void debug()
   cin.getline(c, 1);
 }
 
+
 /**
  * Subroutine that simulates the processor.
  *   The processor should fetch instructions as appropriate, until all instructions have executed
@@ -147,7 +148,7 @@ void complete_proc(proc_stats_t *p_stats) {
 }
 
 // Prints FMT only if verbose flag is set
-void dout(char* fmt, ...)
+void dout(const char* fmt, ...)
 {
   if(verbose)
   {
