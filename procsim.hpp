@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <deque>
+#include <iostream>
 
 
 #define DEFAULT_K0 1
@@ -13,6 +15,20 @@
 #define DEFAULT_D 2
 #define DEFAULT_M 2
 #define DEFAULT_F 4
+
+using namespace std;
+
+typedef struct _proc_inst_t
+{
+    uint32_t instruction_address;
+    uint32_t line_number;
+    int32_t op_code;
+    int32_t src_reg1;
+    int32_t src_reg2;
+    
+    int32_t dest_reg;
+    bool    null;  // whether this is a malformed or nonexistent instruction
+} proc_inst_t;
 
 typedef struct _proc
 {
@@ -25,21 +41,10 @@ typedef struct _proc
   uint64_t d;
   FILE*     in_file;
   bool    debug; // whether to run in debug mode
+
 } proc_t;
 
-typedef struct _proc_inst_t
-{
-    uint32_t instruction_address;
-    uint32_t line_number;
-    int32_t op_code;
-    int32_t src_reg[2];
-    int32_t dest_reg;
-
-    
-    // You may introduce other fields as needed
-    
-} proc_inst_t;
-
+  deque<proc_inst_t> dispatch_q;
 typedef struct _proc_stats_t
 {
     float avg_inst_fire;
