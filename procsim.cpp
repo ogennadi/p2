@@ -18,6 +18,7 @@ uint64_t d;
 FILE*     in_file;
 bool    debug_mode; // whether to run in debug mode
 deque<proc_inst_t> dispatch_q;
+uint32_t            dispatch_q_size;
 bool    verbose;  // show debug output
 
 //
@@ -66,12 +67,13 @@ void setup_proc(FILE* iin_file, uint64_t id, uint64_t ik0, uint64_t ik1, uint64_
   m     = im;
   in_file = iin_file;
   verbose = true;
+  dispatch_q_size = d*(m*k0 + m*k1 + m*k2);
 }
 
 // Fetch stage
 void fetch()
 {
-  for(uint32_t i = 0; i < f; i++)
+  for(uint32_t i = 0; i < f && dispatch_q.size() < dispatch_q_size; i++)
   {
     proc_inst_t inst = read_instruction();
     
