@@ -24,12 +24,12 @@ void print_statistics(proc_stats_t* p_stats);
 
 int main(int argc, char* argv[]) {
     int opt;
-    uint64_t f = DEFAULT_F;
-    uint64_t m = DEFAULT_M;
-    uint64_t k0 = DEFAULT_K0;
-    uint64_t k1 = DEFAULT_K1;
-    uint64_t k2 = DEFAULT_K2;
-    uint64_t d = DEFAULT_D;
+    int f = DEFAULT_F;
+    int m = DEFAULT_M;
+    int k0 = DEFAULT_K0;
+    int k1 = DEFAULT_K1;
+    int k2 = DEFAULT_K2;
+    int d = DEFAULT_D;
 
     /* Read arguments */ 
     while(-1 != (opt = getopt(argc, argv, "d:i:j:k:l:f:m:h"))) {
@@ -69,12 +69,12 @@ int main(int argc, char* argv[]) {
     }
 
     printf("Processor Settings\n");
-    printf("D: %" PRIu64 "\n", d);
-    printf("k0: %" PRIu64 "\n", k0);
-    printf("k1: %" PRIu64 "\n", k1);
-    printf("k2: %" PRIu64 "\n", k2);
-    printf("F: %"  PRIu64 "\n", f);
-    printf("M: %" PRIu64 "\n", m);
+    printf("D: %i\n", d);
+    printf("k0: %i\n", k0);
+    printf("k1: %i\n", k1);
+    printf("k2: %i\n", k2);
+    printf("F: %i\n", f);
+    printf("M: %i\n", m);
     printf("\n");
 
     /* Setup the processor */
@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
 }
 
 void print_statistics(proc_stats_t* p_stats) {
-    printf("Processor stats:\n");
+  printf("Processor stats:\n");
 	printf("Avg inst fired per cycle: %f\n", p_stats->avg_inst_fire);
 	printf("Total instructions: %lu\n", p_stats->retired_instruction);
 	printf("Total run time (cycles): %lu\n", p_stats->cycle_count);

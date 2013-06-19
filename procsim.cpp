@@ -1,6 +1,8 @@
 #include <cstdarg>
 #include <list>
 #include "procsim.hpp"
+#include "RegisterFile.hpp"
+#include "reservation_station.hpp"
 
 #define FETCH 0
 #define DISP 1
@@ -8,31 +10,27 @@
 #define EXEC 3
 #define STATE 4
 
-#define RF_READY_COL 0
-#define RF_TAG_COL 1
-
-
 // Simulator variables
-uint32_t cycle;
-uint64_t f;
-uint64_t m;
-uint64_t k0;
-uint64_t k1;
-uint64_t k2;
-uint64_t d;
+int cycle;
+int f;
+int m;
+int k0;
+int k1;
+int k2;
+int d;
 FILE*     in_file;
 bool    debug_mode; // whether to run in debug mode
 bool    verbose;  // show debug output
 
 list<proc_inst_t>  dispatch_q;
 typedef             list<proc_inst_t>::iterator dispatch_q_iterator ;
-uint32_t            dispatch_q_size;
+unsigned int            dispatch_q_size;
 
 list<reservation_station> schedule_q;
 typedef             list<reservation_station>::iterator schedule_q_iterator ;
-uint32_t                schedule_q_size;
+unsigned int                schedule_q_size;
 
-int register_file[NUM_REGISTERS][2];
+RegisterFile register_file;
 
 //
 // read_instruction
@@ -68,7 +66,7 @@ proc_inst_t read_instruction()
  * Subroutine for initializing the processor. You many add and initialize any global or heap
  * variables as needed.
  */
-void setup_proc(FILE* iin_file, uint64_t id, uint64_t ik0, uint64_t ik1, uint64_t ik2, uint64_t fi, uint64_t im)
+void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int im)
 {
   cycle = 0;
   debug_mode = false;
@@ -82,19 +80,13 @@ void setup_proc(FILE* iin_file, uint64_t id, uint64_t ik0, uint64_t ik1, uint64_
   verbose = true;
   dispatch_q_size = d*(m*k0 + m*k1 + m*k2);
   schedule_q_size = m*k0 + m*k1 + m*k2;
-
-  for(int i = 0; i < NUM_REGISTERS; i++)
-  {
-    register_file[i][RF_READY_COL] = true;
-    register_file[i][RF_TAG_COL] = -1;
-  }
 }
 
 // Fetch stage
 void fetch()
 {
 //  dout("got to fetch\n");
-  for(uint32_t i = 0; i < f && dispatch_q.size() < dispatch_q_size; i++)
+  for(int i = 0; i < f && dispatch_q.size() < dispatch_q_size; i++)
   {
     proc_inst_t inst = read_instruction();
     
@@ -127,18 +119,18 @@ void dispatch()
       
       for(int i = 0; i < NUM_SRC_REGS; i++)
       {
-        if(register_file[inst.src_reg[i]][RF_READY_COL])
+        if(register_file.ready(inst.src_reg[i]))
         {
           rs.src[i].ready = true;
         }else{
-          rs.src[i].tag   = register_file[inst.src_reg[i]][RF_TAG_COL];
+          rs.src[i].tag   = register_file.tag(inst.src_reg[i]);
           rs.src[i].ready = false;
         }
       }
 
-      register_file[inst.dest_reg][RF_TAG_COL] = inst.line_number;
-      rs.dest_reg_tag = register_file[inst.dest_reg][RF_TAG_COL];
-      register_file[inst.dest_reg][RF_READY_COL] = false;
+      register_file.set_tag(inst.dest_reg, inst.line_number);
+      rs.dest_reg_tag = register_file.tag(inst.dest_reg);
+      register_file.set_ready(inst.dest_reg, false);
       rs.instruction.entry_time[DISP] = cycle;
       schedule_q.push_back(rs);
     }else{
@@ -153,7 +145,7 @@ void status_update()
     if(!schedule_q.empty())
     {
       proc_inst_t i = schedule_q.front().instruction;
-      dout("%u\t%u\t%u\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP]);
+      dout("%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP]);
       schedule_q.pop_front();
     }
 }
@@ -207,14 +199,14 @@ void dout(const char* fmt, ...)
 // Pauses simulation execution and prints processor state
 void debug()
 {
-  dout("cycle %u\n", cycle);
+  dout("cycle %i\n", cycle);
   printf("dispatch Q: ");
 
   for(dispatch_q_iterator ix = dispatch_q.begin();
       ix != dispatch_q.end();
       ++ix)
   {
-    printf("%u ", (*ix).line_number);
+    printf("%i ", (*ix).line_number);
   }
   dout("\n");
 
@@ -226,7 +218,7 @@ void debug()
       ++ix)
   {
     reservation_station rs = (*ix);
-    dout("%i\t%i\t%u\t%u\t%i\t%u\t%i\n", rs.function_unit, rs.dest_reg, rs.dest_reg_tag, rs.src[0].ready, rs.src[0].tag, rs.src[1].ready, rs.src[1].tag);
+    dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\n", rs.function_unit, rs.dest_reg, rs.dest_reg_tag, rs.src[0].ready, rs.src[0].tag, rs.src[1].ready, rs.src[1].tag);
   }
 
   dout("register file:\n");
@@ -234,7 +226,7 @@ void debug()
 
   for(int i = 0; i < NUM_REGISTERS; i++)
   {
-    dout("%i\t%i\t%i\n", i , register_file[i][RF_READY_COL], register_file[i][RF_TAG_COL]);
+    dout("%i\t%i\t%i\n", i , register_file.ready(i), register_file.tag(i));
   }
 
   // pause for input
