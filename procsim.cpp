@@ -86,6 +86,7 @@ void setup_proc(FILE* iin_file, uint64_t id, uint64_t ik0, uint64_t ik1, uint64_
   for(int i = 0; i < NUM_REGISTERS; i++)
   {
     register_file[i][RF_READY_COL] = true;
+    register_file[i][RF_TAG_COL] = -1;
   }
 }
 
@@ -106,7 +107,7 @@ void fetch()
   }
 }
 
-// dispatch stag
+// dispatch stage
 // N>B> watch out for -1 registers!
 void dispatch()
 {
@@ -220,15 +221,26 @@ void debug()
   }
   dout("\n");
 
-  dout("schedule Q: ");
+  dout("schedule Q: \n");
+  dout("FU\tD\tD Tag\tS1 Ry\tS1 tag\tS2 ry\tS2 tag\n");
 
   for(schedule_q_iterator ix = schedule_q.begin();
       ix != schedule_q.end();
       ++ix)
   {
-    dout("%u ", (*ix).instruction.line_number);
+    reservation_station rs = (*ix);
+    dout("%i\t%i\t%u\t%u\t%u\t%u\t%u\n", rs.function_unit, rs.dest_reg, rs.dest_reg_tag, rs.src[0].ready, rs.src[0].tag, rs.src[1].ready, rs.src[1].tag);
   }
 
+  dout("register file:\n");
+  dout("Reg\tReady\tTag\n");
+
+  for(int i = 0; i < NUM_REGISTERS; i++)
+  {
+    dout("%i\t%i\t%i\n", i , register_file[i][RF_READY_COL], register_file[i][RF_TAG_COL]);
+  }
+
+  // pause for input
   char c[1];
   cin.getline(c, 1);
 }
