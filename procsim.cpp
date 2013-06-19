@@ -150,15 +150,12 @@ void dispatch()
 // status update stage
 void status_update()
 {
-  for(int i = 0 ; i < 2; i++)
-  {
     if(!schedule_q.empty())
     {
       proc_inst_t i = schedule_q.front().instruction;
       dout("%u\t%u\t%u\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP]);
       schedule_q.pop_front();
     }
-  }
 }
 
 /**
@@ -177,11 +174,10 @@ void run_proc(proc_stats_t* p_stats)
 
     if(debug_mode)
     {
-      debug_mode = false;
+      //debug_mode = false;
       debug();
     }
 
-    //dout("cycle %u\n", cycle);
     cycle++;
   }while(!schedule_q.empty() || !dispatch_q.empty());
 }
@@ -211,6 +207,7 @@ void dout(const char* fmt, ...)
 // Pauses simulation execution and prints processor state
 void debug()
 {
+  dout("cycle %u\n", cycle);
   printf("dispatch Q: ");
 
   for(dispatch_q_iterator ix = dispatch_q.begin();
@@ -229,7 +226,7 @@ void debug()
       ++ix)
   {
     reservation_station rs = (*ix);
-    dout("%i\t%i\t%u\t%u\t%u\t%u\t%u\n", rs.function_unit, rs.dest_reg, rs.dest_reg_tag, rs.src[0].ready, rs.src[0].tag, rs.src[1].ready, rs.src[1].tag);
+    dout("%i\t%i\t%u\t%u\t%i\t%u\t%i\n", rs.function_unit, rs.dest_reg, rs.dest_reg_tag, rs.src[0].ready, rs.src[0].tag, rs.src[1].ready, rs.src[1].tag);
   }
 
   dout("register file:\n");
@@ -241,8 +238,9 @@ void debug()
   }
 
   // pause for input
-  char c[1];
-  cin.getline(c, 1);
+  char c;
+  cin >> c;
+  debug_mode = (c != 'c');
 }
 
 
