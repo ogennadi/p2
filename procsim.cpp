@@ -1,6 +1,8 @@
 #include <cstdarg>
 #include <list>
+#include <vector>
 #include "procsim.hpp"
+#include "FunctionUnitBank.hpp"
 #include "RegisterFile.hpp"
 #include "reservation_station.hpp"
 
@@ -9,6 +11,10 @@
 #define SCHED 2
 #define EXEC 3
 #define STATE 4
+
+#define K0_STAGES 1
+#define K1_STAGES 2
+#define K2_STAGES 3
 
 // Simulator variables
 int cycle;
@@ -30,8 +36,33 @@ list<reservation_station> schedule_q;
 typedef             list<reservation_station>::iterator schedule_q_iterator ;
 unsigned int                schedule_q_size;
 
-RegisterFile register_file;
+RegisterFile      register_file;
+vector<FunctionUnitBank>  function_unit;
 
+
+/**
+ * Subroutine for initializing the processor. You many add and initialize any global or heap
+ * variables as needed.
+ */
+void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int im)
+{
+  cycle = 0;
+  debug_mode = false;
+  d     = id;
+  k0    = ik0;
+  k1    = ik1;
+  k2    = ik2;
+  f     = fi;
+  m     = im;
+  in_file = iin_file;
+  verbose = true;
+  dispatch_q_size = d*(m*k0 + m*k1 + m*k2);
+  schedule_q_size = m*k0 + m*k1 + m*k2;
+
+  function_unit.push_back(FunctionUnitBank(ik0, K0_STAGES));
+  function_unit.push_back(FunctionUnitBank(ik1, K1_STAGES));
+  function_unit.push_back(FunctionUnitBank(ik2, K2_STAGES));
+}
 //
 // read_instruction
 //
@@ -60,26 +91,6 @@ proc_inst_t read_instruction()
     p_inst.line_number = line_number;
     line_number++;
     return p_inst;
-}
-
-/**
- * Subroutine for initializing the processor. You many add and initialize any global or heap
- * variables as needed.
- */
-void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int im)
-{
-  cycle = 0;
-  debug_mode = false;
-  d     = id;
-  k0    = ik0;
-  k1    = ik1;
-  k2    = ik2;
-  f     = fi;
-  m     = im;
-  in_file = iin_file;
-  verbose = true;
-  dispatch_q_size = d*(m*k0 + m*k1 + m*k2);
-  schedule_q_size = m*k0 + m*k1 + m*k2;
 }
 
 // Fetch stage
@@ -139,6 +150,37 @@ void dispatch()
   }
 }
 
+// Schedule stage
+void schedule()
+{
+  vector<int> ready_tags = register_file.ready_tags();
+
+  for(schedule_q_iterator ix = schedule_q.begin();
+      ix != schedule_q.end();
+      ix++)
+  {
+    reservation_station rs = (*ix);
+    
+    for(int i = 0; i < 2; i++)
+    {
+      for(unsigned int j=0; j < ready_tags.size(); j++)
+      {
+        if(rs.src[i].tag == ready_tags[j])
+        {
+          rs.src[i].ready = true;
+        }
+      }
+    }
+
+    if(rs.src[0].ready && 
+       rs.src[1].ready &&
+       !function_unit[rs.function_unit].busy())
+    {
+      function_unit[rs.function_unit].issue(rs.dest_reg_tag);
+    }
+  }
+}
+
 // status update stage
 void status_update()
 {
@@ -161,6 +203,7 @@ void run_proc(proc_stats_t* p_stats)
   do
   {
     status_update();
+    schedule();
     dispatch();
     fetch();
 

@@ -3,6 +3,7 @@
 
 #define RF_READY_COL 0
 #define RF_TAG_COL 1
+#define UNTAGGED -1
 
 // Wraps the register file with accessors so I can deal with invalid register
 // numbers e.g. -1.
@@ -15,7 +16,7 @@ public:
     for(int i = 0; i < NUM_REGISTERS; i++)
     {
       register_file[i][RF_READY_COL] = true;
-      register_file[i][RF_TAG_COL] = -1;
+      register_file[i][RF_TAG_COL] = UNTAGGED;
     }
   }
 
@@ -58,5 +59,22 @@ public:
     }
 
     register_file[reg_num][RF_READY_COL] = ready;
+  }
+
+  // Returns all tagged registers that are ready
+  vector<int> ready_tags()
+  {
+    vector<int> ret;
+
+    for(int i = 0; i < NUM_REGISTERS; i++)
+    {
+
+      if(ready(i) && tag(i) != UNTAGGED)
+      {
+        ret.push_back(tag(i));
+      }
+    }
+
+    return ret;
   }
 };

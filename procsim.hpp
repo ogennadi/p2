@@ -35,8 +35,6 @@ typedef struct _proc_stats_t
     float avg_inst_fire;
     unsigned long retired_instruction;
     unsigned long cycle_count;
-    float avg_ipc;
-    float perc_branch_pred;
 } proc_stats_t;
 
 proc_inst_t read_instruction();
