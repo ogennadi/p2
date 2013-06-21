@@ -19,7 +19,7 @@
 
 using namespace std;
 
-typedef struct _proc_inst_t
+struct proc_inst_t
 {
     int instruction_address;
     int line_number;
@@ -28,7 +28,7 @@ typedef struct _proc_inst_t
     int dest_reg;
     bool    null;  // whether this is a malformed or nonexistent instruction
     int  entry_time[5];
-} proc_inst_t;
+};
 
 typedef struct _proc_stats_t
 {
