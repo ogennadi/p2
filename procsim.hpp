@@ -45,4 +45,9 @@ void complete_proc(proc_stats_t* p_stats);
 
 void dout(const char* fmt, ...);
 void debug();
+void show_cycle();
+void show_dispatch_q();
+void show_schedule_q();
+void show_register_file();
+void show_function_units();
 #endif /* PROCSIM_HPP */

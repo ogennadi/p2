@@ -177,6 +177,7 @@ void schedule()
        !function_unit[rs.function_unit].busy())
     {
       function_unit[rs.function_unit].issue(rs.dest_reg_tag);
+      rs.instruction.entry_time[SCHED] = cycle;
     }
   }
 }
@@ -187,7 +188,7 @@ void status_update()
     if(!schedule_q.empty())
     {
       proc_inst_t i = schedule_q.front().instruction;
-      dout("%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP]);
+      dout("%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED]);
       schedule_q.pop_front();
     }
 }
@@ -209,7 +210,6 @@ void run_proc(proc_stats_t* p_stats)
 
     if(debug_mode)
     {
-      //debug_mode = false;
       debug();
     }
 
@@ -242,7 +242,26 @@ void dout(const char* fmt, ...)
 // Pauses simulation execution and prints processor state
 void debug()
 {
+  show_cycle();
+  show_dispatch_q();
+  show_schedule_q();
+  //show_register_file();
+  show_function_units();
+
+  // pause for input
+  char c;
+  cin >> c;
+  debug_mode = (c != 'c');
+}
+
+void show_cycle()
+{
   dout("cycle %i\n", cycle);
+
+}
+
+void show_dispatch_q()
+{
   printf("dispatch Q: ");
 
   for(dispatch_q_iterator ix = dispatch_q.begin();
@@ -252,7 +271,10 @@ void debug()
     printf("%i ", (*ix).line_number);
   }
   dout("\n");
+}
 
+void show_schedule_q()
+{
   dout("schedule Q: \n");
   dout("FU\tD\tD Tag\tS1 Ry\tS1 tag\tS2 ry\tS2 tag\n");
 
@@ -263,7 +285,10 @@ void debug()
     reservation_station rs = (*ix);
     dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\n", rs.function_unit, rs.dest_reg, rs.dest_reg_tag, rs.src[0].ready, rs.src[0].tag, rs.src[1].ready, rs.src[1].tag);
   }
+}
 
+void show_register_file()
+{
   dout("register file:\n");
   dout("Reg\tReady\tTag\n");
 
@@ -271,11 +296,23 @@ void debug()
   {
     dout("%i\t%i\t%i\n", i , register_file.ready(i), register_file.tag(i));
   }
-
-  // pause for input
-  char c;
-  cin >> c;
-  debug_mode = (c != 'c');
 }
 
+void show_function_units()
+{
+  dout("Function Units\n");
+  for(unsigned int i = 0; i < function_unit.size(); i++)
+  {
+    for(unsigned int j = 0; j < function_unit[i].function_unit.size(); j++)
+    {
+      dout("k%u_%u: ", i, j);
+      
+      for(unsigned int k = 0; k < function_unit[i].function_unit[j].size(); k++)
+      {
+        dout("%i ", function_unit[i].function_unit[j][k]);
+      }
 
+      dout("\n");
+    }
+  }
+}
