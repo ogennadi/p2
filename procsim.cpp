@@ -39,6 +39,8 @@ unsigned int schedule_q_size;
 RegisterFile      register_file;
 vector<FunctionUnitBank>  function_unit;
 
+list<proc_inst_t> state_update_q;
+
 
 /**
  * Subroutine for initializing the processor. You many add and initialize any global or heap
@@ -195,26 +197,41 @@ void execute()
     function_unit[i].execute();
   }
 
-  //  dout("completed %u: ", completed_tags.size());
-  //// delete tags from schedule q and add them to the state update q
-  //for(unsigned int i = 0; i < completed_tags.size(); i++)
-  //{
-  //  dout("%i ", completed_tags[i]); 
-  //}
+  // delete tags from schedule q and add them to the state update q
+  for(unsigned int i = 0; i < completed_tags.size(); i++)
+  {
+    for(schedule_q_iterator ix = schedule_q.begin();
+        ix != schedule_q.end();
+        ++ix)
+    {
+      reservation_station *rs = *ix;
 
-  //dout("\n");
+      if(rs->dest_reg_tag == completed_tags[i])
+      {
+        state_update_q.push_back(rs->instruction);
+        schedule_q.erase(ix);
+
+        // remove from schedule q
+        proc_inst_t i = rs->instruction;
+        dout("%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED]);
+        delete rs;
+        //end remove
+        break;
+      }
+    }
+  }
 }
 
 // status update stage
 void status_update()
 {
-    if(!schedule_q.empty())
-    {
-      proc_inst_t i = schedule_q.front()->instruction;
-      dout("%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED]);
-      delete schedule_q.front();
-      schedule_q.pop_front();
-    }
+   if(!schedule_q.empty())
+   {
+     proc_inst_t i = schedule_q.front()->instruction;
+     dout("%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED]);
+     delete schedule_q.front();
+     schedule_q.pop_front();
+   }
 }
 
 /**
