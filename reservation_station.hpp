@@ -3,6 +3,7 @@ struct reservation_station{
   int         function_unit;
   int         dest_reg_tag;
   int         dest_reg;
+  bool        issued;
 
   struct{
     bool  ready;
@@ -13,6 +14,7 @@ struct reservation_station{
     function_unit = -1;
     dest_reg_tag  = -1;
     dest_reg      = -1;
+    issued        = false;
 
     for(int i = 0; i < 2; i++)
     {

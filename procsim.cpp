@@ -111,7 +111,6 @@ void fetch()
 }
 
 // dispatch stage
-// N>B> watch out for -1 registers!
 void dispatch()
 {
   dispatch_q_iterator ix = dispatch_q.begin();
@@ -174,13 +173,36 @@ void schedule()
 
     if(rs->src[0].ready && 
        rs->src[1].ready &&
-       !function_unit[rs->function_unit].busy())
+       !function_unit[rs->function_unit].busy() &&
+       !rs->issued)
     {
       function_unit[rs->function_unit].issue(rs->dest_reg_tag);
-      printf("got here at cycle %i\n", cycle);
+      rs->issued = true;
       rs->instruction.entry_time[SCHED] = cycle;
     }
   }
+}
+
+// execute stage
+void execute()
+{
+  vector<int> completed_tags;
+
+  for(unsigned int i = 0; i < function_unit.size(); i++)
+  {
+    vector<int> tmp =  function_unit[i].completed_tags();
+    completed_tags.insert(completed_tags.end(), tmp.begin(), tmp.end());
+    function_unit[i].execute();
+  }
+
+  //  dout("completed %u: ", completed_tags.size());
+  //// delete tags from schedule q and add them to the state update q
+  //for(unsigned int i = 0; i < completed_tags.size(); i++)
+  //{
+  //  dout("%i ", completed_tags[i]); 
+  //}
+
+  //dout("\n");
 }
 
 // status update stage
@@ -206,6 +228,7 @@ void run_proc(proc_stats_t* p_stats)
   do
   {
     status_update();
+    execute();
     schedule();
     dispatch();
     fetch();
