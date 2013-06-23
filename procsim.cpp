@@ -41,6 +41,7 @@ vector<FunctionUnitBank>  function_unit;
 
 list<reservation_station*> state_update_q;
 
+static int  line_number = 1;
 
 /**
  * Subroutine for initializing the processor. You many add and initialize any global or heap
@@ -70,7 +71,6 @@ void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int i
 //
 proc_inst_t read_instruction()
 {
-    static int  line_number = 1;
     proc_inst_t p_inst;
     int         ret = fscanf(in_file, "%x %d %d %d %d", &p_inst.instruction_address,
                       &p_inst.op_code, &p_inst.dest_reg, &p_inst.src_reg[0], &p_inst.src_reg[1]); 
@@ -281,6 +281,9 @@ void run_proc(proc_stats_t* p_stats)
  * @p_stats Pointer to the statistics structure
  */
 void complete_proc(proc_stats_t *p_stats) {
+  p_stats->retired_instruction  = line_number;
+  p_stats->cycle_count          = cycle;
+  p_stats->avg_inst_fire        = line_number/(float)cycle;
 }
 
 // Prints FMT only if verbose flag is set
