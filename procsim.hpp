@@ -43,6 +43,7 @@ void setup_proc(FILE* in_file, int d, int k0, int k1, int k2, int f, int m);
 void run_proc(proc_stats_t* p_stats);
 void complete_proc(proc_stats_t* p_stats);
 
+bool schedule_q_free(int fu_type);
 void dout(const char* fmt, ...);
 void debug();
 void show_cycle();

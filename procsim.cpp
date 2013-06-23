@@ -34,7 +34,7 @@ unsigned int            dispatch_q_size;
 
 list<reservation_station*> schedule_q;
 typedef list<reservation_station*>::iterator schedule_q_iterator ;
-unsigned int schedule_q_size;
+//unsigned int schedule_q_size;
 
 RegisterFile      register_file;
 vector<FunctionUnitBank>  function_unit;
@@ -60,7 +60,7 @@ void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int i
   in_file = iin_file;
   verbose = true;
   dispatch_q_size = d*(m*k0 + m*k1 + m*k2);
-  schedule_q_size = m*k0 + m*k1 + m*k2;
+  //schedule_q_size = m*k0 + m*k1 + m*k2;
 
   function_unit.push_back(FunctionUnitBank(ik0, K0_STAGES));
   function_unit.push_back(FunctionUnitBank(ik1, K1_STAGES));
@@ -106,7 +106,8 @@ void fetch()
     if(inst.null){
       return;
     }else{
-      inst.entry_time[FETCH] = cycle;
+      inst.entry_time[FETCH]  = cycle;
+      inst.entry_time[DISP]   = cycle+1;
       dispatch_q.push_back(inst);
     }
   }
@@ -119,15 +120,16 @@ void dispatch()
 
   while(ix != dispatch_q.end())
   {
-    if(schedule_q.size() < schedule_q_size)
+    proc_inst_t inst  = (*ix);
+    int fu_type       = inst.op_code == -1 ? 0 : inst.op_code;
+
+    if(schedule_q_free(fu_type))
     {
       reservation_station *rs = new reservation_station;
-
-      proc_inst_t inst = (*ix);
-      rs->instruction = inst;
-      ix = dispatch_q.erase(ix);
-      rs->function_unit = inst.op_code == -1 ? 0 : inst.op_code;
-      rs->dest_reg = inst.dest_reg;
+      rs->instruction         = inst;
+      ix                      = dispatch_q.erase(ix);
+      rs->function_unit       = fu_type;
+      rs->dest_reg            = inst.dest_reg;
       
       for(int i = 0; i < NUM_SRC_REGS; i++)
       {
@@ -150,7 +152,7 @@ void dispatch()
         register_file.set_ready(inst.dest_reg, false);
       }
 
-      rs->instruction.entry_time[DISP] = cycle;
+      rs->instruction.entry_time[SCHED] = cycle + 1;
       schedule_q.push_back(rs);
     }else{
       break;
@@ -250,6 +252,28 @@ void state_update()
     delete rs;
     state_update_q.pop_front();
   }
+}
+
+// Returns true if there is space in schedule queue for instructions of type
+// FU_TYPE
+bool schedule_q_free(int fu_type)
+{
+  int count = 0;
+  int queue_sizes[3] = {m*k0, m*k1, m*k2};
+
+  for(schedule_q_iterator ix = schedule_q.begin();
+      ix != schedule_q.end();
+      ++ix)
+  {
+    reservation_station *rs = (*ix);
+    
+    if(rs->function_unit == fu_type)
+    {
+      count++;
+    }
+  }
+
+  return count < queue_sizes[fu_type];
 }
 
 /**
