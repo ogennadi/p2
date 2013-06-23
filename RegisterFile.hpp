@@ -1,4 +1,3 @@
-#include <cassert>
 #include "procsim.hpp"
 
 #define RF_READY_COL 0
@@ -24,8 +23,8 @@ public:
   { 
     if(reg_num == -1)
     {
-      assert("Should not get tag of -1");
-      return -1;
+      printf("Should not get tag of -1\n");
+      exit(1);
     }
 
     return register_file[reg_num][RF_TAG_COL];
@@ -59,6 +58,18 @@ public:
     }
 
     register_file[reg_num][RF_READY_COL] = ready;
+  }
+
+  // sets all registers with tags matching TAG to ready
+  void set_tag_ready(int tag)
+  {
+    for(int i = 0; i < NUM_REGISTERS; i++)
+    {
+      if( register_file[i][RF_TAG_COL] == tag)
+      {
+        register_file[i][RF_READY_COL] = true;
+      }
+    }
   }
 
   // Returns all tagged registers that are ready

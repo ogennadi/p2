@@ -39,7 +39,7 @@ unsigned int schedule_q_size;
 RegisterFile      register_file;
 vector<FunctionUnitBank>  function_unit;
 
-list<proc_inst_t> state_update_q;
+list<reservation_station*> state_update_q;
 
 
 /**
@@ -141,7 +141,14 @@ void dispatch()
       }
 
       register_file.set_tag(inst.dest_reg, inst.line_number);
-      rs->dest_reg_tag = register_file.tag(inst.dest_reg);
+
+      if(inst.dest_reg == -1)
+      {
+        rs->dest_reg_tag = inst.line_number;
+      }else{
+        rs->dest_reg_tag = register_file.tag(inst.dest_reg);
+      }
+
       register_file.set_ready(inst.dest_reg, false);
       rs->instruction.entry_time[DISP] = cycle;
       schedule_q.push_back(rs);
@@ -181,6 +188,7 @@ void schedule()
       function_unit[rs->function_unit].issue(rs->dest_reg_tag);
       rs->issued = true;
       rs->instruction.entry_time[SCHED] = cycle;
+      rs->instruction.entry_time[EXEC]  = cycle+1;
     }
   }
 }
@@ -208,30 +216,36 @@ void execute()
 
       if(rs->dest_reg_tag == completed_tags[i])
       {
-        state_update_q.push_back(rs->instruction);
+        state_update_q.push_back(rs);
         schedule_q.erase(ix);
-
-        // remove from schedule q
-        proc_inst_t i = rs->instruction;
-        dout("%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED]);
-        delete rs;
-        //end remove
         break;
       }
     }
   }
 }
 
-// status update stage
-void status_update()
+//returns true if the dest_reg_tag of first is less than second
+bool compare_tag(reservation_station *first, reservation_station *second)
 {
-   if(!schedule_q.empty())
-   {
-     proc_inst_t i = schedule_q.front()->instruction;
-     dout("%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED]);
-     delete schedule_q.front();
-     schedule_q.pop_front();
-   }
+  return first->dest_reg_tag < second->dest_reg_tag;
+}
+
+// state update stage
+void state_update()
+{
+  state_update_q.sort(compare_tag);
+
+  while(!state_update_q.empty())
+  {
+    reservation_station *rs = state_update_q.front();
+    rs->instruction.entry_time[STATE] = cycle;
+    proc_inst_t i = rs->instruction;
+    dout("%i\t%i\t%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED], i.entry_time[EXEC], i.entry_time[STATE]);
+
+    register_file.set_tag_ready(rs->dest_reg_tag);
+    delete rs;
+    state_update_q.pop_front();
+  }
 }
 
 /**
@@ -244,7 +258,7 @@ void run_proc(proc_stats_t* p_stats)
 
   do
   {
-    status_update();
+    state_update();
     execute();
     schedule();
     dispatch();
@@ -318,14 +332,14 @@ void show_dispatch_q()
 void show_schedule_q()
 {
   dout("schedule Q: \n");
-  dout("FU\tD Tag\tD\tS1 Ry\tS1 tag\tS2 Ry\tS2 tag\n");
+  dout("FU\tD Tag\tD\tS1 Ry\tS1 tag\tS2 Ry\tS2 tag\tIssued\n");
 
   for(schedule_q_iterator ix = schedule_q.begin();
       ix != schedule_q.end();
       ++ix)
   {
     reservation_station *rs = (*ix);
-    dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\n", rs->function_unit, rs->dest_reg_tag, rs->dest_reg, rs->src[0].ready, rs->src[0].tag, rs->src[1].ready, rs->src[1].tag);
+    dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\n", rs->function_unit, rs->dest_reg_tag, rs->dest_reg, rs->src[0].ready, rs->src[0].tag, rs->src[1].ready, rs->src[1].tag, rs->issued);
   }
 }
 
