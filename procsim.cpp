@@ -274,20 +274,19 @@ void run_proc(proc_stats_t* p_stats)
     }
 
     cycle++;
-  }while(!schedule_q.empty() || !dispatch_q.empty());
+  }while(!(schedule_q.empty() && dispatch_q.empty() && state_update_q.empty()));
 }
 
 /**
  * Subroutine for cleaning up any outstanding instructions and calculating overall statistics
  * such as average IPC or branch prediction percentage
- * XXX: You're responsible for completing this routine
  *
  * @p_stats Pointer to the statistics structure
  */
 void complete_proc(proc_stats_t *p_stats) {
-  p_stats->retired_instruction  = line_number;
+  p_stats->retired_instruction  = line_number-1;
   p_stats->cycle_count          = cycle;
-  p_stats->avg_inst_fire        = line_number/(float)cycle;
+  p_stats->avg_inst_fire        = p_stats->retired_instruction /(float)p_stats->cycle_count;
 }
 
 // Prints FMT only if verbose flag is set
