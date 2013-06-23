@@ -71,21 +71,4 @@ public:
       }
     }
   }
-
-  // Returns all tagged registers that are ready
-  vector<int> ready_tags()
-  {
-    vector<int> ret;
-
-    for(int i = 0; i < NUM_REGISTERS; i++)
-    {
-
-      if(ready(i) && tag(i) != UNTAGGED)
-      {
-        ret.push_back(tag(i));
-      }
-    }
-
-    return ret;
-  }
 };

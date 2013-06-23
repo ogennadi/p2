@@ -147,9 +147,9 @@ void dispatch()
         rs->dest_reg_tag = inst.line_number;
       }else{
         rs->dest_reg_tag = register_file.tag(inst.dest_reg);
+        register_file.set_ready(inst.dest_reg, false);
       }
 
-      register_file.set_ready(inst.dest_reg, false);
       rs->instruction.entry_time[DISP] = cycle;
       schedule_q.push_back(rs);
     }else{
@@ -161,24 +161,11 @@ void dispatch()
 // Schedule stage
 void schedule()
 {
-  vector<int> ready_tags = register_file.ready_tags();
-
   for(schedule_q_iterator ix = schedule_q.begin();
       ix != schedule_q.end();
       ix++)
   {
     reservation_station *rs = (*ix);
-    
-    for(int i = 0; i < 2; i++)
-    {
-      for(unsigned int j=0; j < ready_tags.size(); j++)
-      {
-        if(rs->src[i].tag == ready_tags[j])
-        {
-          rs->src[i].ready = true;
-        }
-      }
-    }
 
     if(rs->src[0].ready && 
        rs->src[1].ready &&
@@ -243,6 +230,23 @@ void state_update()
     dout("%i\t%i\t%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED], i.entry_time[EXEC], i.entry_time[STATE]);
 
     register_file.set_tag_ready(rs->dest_reg_tag);
+
+    for(schedule_q_iterator ix = schedule_q.begin();
+        ix != schedule_q.end();
+        ++ix)
+    {
+      
+      reservation_station *rs1 = (*ix);
+
+      for(int i = 0; i < 2; i++)
+      {
+        if(rs1->src[i].tag == rs->dest_reg_tag)
+        {
+          rs1->src[i].ready = true;
+        }
+      }
+    }
+
     delete rs;
     state_update_q.pop_front();
   }
