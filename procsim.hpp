@@ -17,6 +17,9 @@
 #define NUM_SRC_REGS 2
 #define NUM_REGISTERS 32
 
+#define VERBOSE 0
+#define EXPERIMENT 1
+
 using namespace std;
 
 struct proc_inst_t
@@ -51,4 +54,6 @@ void show_dispatch_q();
 void show_schedule_q();
 void show_register_file();
 void show_function_units();
+
+void print_statistics(proc_stats_t* p_stats);
 #endif /* PROCSIM_HPP */

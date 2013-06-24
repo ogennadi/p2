@@ -27,7 +27,6 @@ int k2;
 int d;
 FILE*     in_file;
 bool    debug_mode; // whether to run in debug mode
-bool    verbose;  // show debug output
 
 list<proc_inst_t>  dispatch_q;
 typedef             list<proc_inst_t>::iterator dispatch_q_iterator ;
@@ -68,7 +67,6 @@ void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int i
   f     = fi;
   m     = im;
   in_file = iin_file;
-  verbose = true;
   dispatch_q_size = d*(m*k0 + m*k1 + m*k2);
 
   function_unit.push_back(FunctionUnitBank(ik0, K0_STAGES));
@@ -341,7 +339,18 @@ void complete_proc(proc_stats_t *p_stats) {
 // Prints FMT only if verbose flag is set
 void dout(const char* fmt, ...)
 {
-  if(verbose)
+  if(VERBOSE)
+  {
+    va_list args;
+    va_start(args,fmt);
+    vprintf(fmt,args);
+    va_end(args);
+  }
+}
+
+void eout(const char* fmt, ...)
+{
+  if(EXPERIMENT)
   {
     va_list args;
     va_start(args,fmt);
@@ -427,3 +436,12 @@ void show_function_units()
     }
   }
 }
+
+void print_statistics(proc_stats_t* p_stats) {
+  eout("%f\n", p_stats->avg_inst_fire);
+  dout("Processor stats:\n");
+  dout("Avg inst fired per cycle: %f\n", p_stats->avg_inst_fire);
+  dout("Total instructions: %lu\n", p_stats->retired_instruction);
+  dout("Total run time (cycles): %lu\n", p_stats->cycle_count);
+}
+

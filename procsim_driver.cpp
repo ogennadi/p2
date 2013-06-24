@@ -20,7 +20,7 @@ void print_help_and_exit(void) {
     exit(0);
 }
 
-void print_statistics(proc_stats_t* p_stats);
+//void print_statistics(proc_stats_t* p_stats);
 
 int main(int argc, char* argv[]) {
     int opt;
@@ -68,14 +68,14 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    printf("Processor Settings\n");
-    printf("D: %i\n", d);
-    printf("k0: %i\n", k0);
-    printf("k1: %i\n", k1);
-    printf("k2: %i\n", k2);
-    printf("F: %i\n", f);
-    printf("M: %i\n", m);
-    printf("\n");
+    dout("Processor Settings\n");
+    dout("D: %i\n", d);
+    dout("k0: %i\n", k0);
+    dout("k1: %i\n", k1);
+    dout("k2: %i\n", k2);
+    dout("F: %i\n", f);
+    dout("M: %i\n", m);
+    dout("\n");
 
     /* Setup the processor */
     setup_proc(inFile, d, k0, k1, k2, f, m);
@@ -94,11 +94,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-
-void print_statistics(proc_stats_t* p_stats) {
-  printf("Processor stats:\n");
-	printf("Avg inst fired per cycle: %f\n", p_stats->avg_inst_fire);
-	printf("Total instructions: %lu\n", p_stats->retired_instruction);
-	printf("Total run time (cycles): %lu\n", p_stats->cycle_count);
-}
-
