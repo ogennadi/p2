@@ -1,5 +1,6 @@
 #include <cstdarg>
 #include <list>
+#include <queue>
 #include <vector>
 #include "procsim.hpp"
 #include "FunctionUnitBank.hpp"
@@ -34,12 +35,21 @@ unsigned int            dispatch_q_size;
 
 list<reservation_station*> schedule_q;
 typedef list<reservation_station*>::iterator schedule_q_iterator ;
-//unsigned int schedule_q_size;
 
 RegisterFile      register_file;
 vector<FunctionUnitBank>  function_unit;
 
+class RSCompare
+{
+  public:
+  bool operator()(reservation_station*& r1, reservation_station*& r2)
+  {
+    return r1->dest_reg_tag > r2->dest_reg_tag;
+  }
+};
+
 list<reservation_station*> state_update_q;
+priority_queue<reservation_station*, vector<reservation_station*>, RSCompare> rob;
 
 static int  line_number = 1;
 
@@ -60,7 +70,6 @@ void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int i
   in_file = iin_file;
   verbose = true;
   dispatch_q_size = d*(m*k0 + m*k1 + m*k2);
-  //schedule_q_size = m*k0 + m*k1 + m*k2;
 
   function_unit.push_back(FunctionUnitBank(ik0, K0_STAGES));
   function_unit.push_back(FunctionUnitBank(ik1, K1_STAGES));
@@ -98,7 +107,6 @@ proc_inst_t read_instruction()
 // Fetch stage
 void fetch()
 {
-//  dout("got to fetch\n");
   for(int i = 0; i < f && dispatch_q.size() < dispatch_q_size; i++)
   {
     proc_inst_t inst = read_instruction();
@@ -228,9 +236,6 @@ void state_update()
   {
     reservation_station *rs = state_update_q.front();
     rs->instruction.entry_time[STATE] = cycle;
-    proc_inst_t i = rs->instruction;
-    dout("%i\t%i\t%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED], i.entry_time[EXEC], i.entry_time[STATE]);
-
     register_file.set_tag_ready(rs->dest_reg_tag);
 
     for(schedule_q_iterator ix = schedule_q.begin();
@@ -249,8 +254,24 @@ void state_update()
       }
     }
 
-    delete rs;
+    rob.push(rs);
     state_update_q.pop_front();
+  }
+}
+
+// Output executed instructions to screen in source order
+void commit()
+{
+  static int commit_next = 1;
+  reservation_station *rob_top;
+
+  while(!rob.empty() && (rob_top = rob.top())->dest_reg_tag == commit_next)
+  {
+    proc_inst_t i = rob_top->instruction;
+    dout("%i\t%i\t%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED], i.entry_time[EXEC], i.entry_time[STATE]);
+    commit_next++;
+    delete rob_top;
+    rob.pop();
   }
 }
 
@@ -286,6 +307,7 @@ void run_proc(proc_stats_t* p_stats)
 
   do
   {
+    commit();
     state_update();
     execute();
     schedule();
@@ -298,7 +320,10 @@ void run_proc(proc_stats_t* p_stats)
     }
 
     cycle++;
-  }while(!(schedule_q.empty() && dispatch_q.empty() && state_update_q.empty()));
+  }while(!(schedule_q.empty() &&
+            dispatch_q.empty() &&
+            state_update_q.empty() &&
+            rob.empty()));
 }
 
 /**
