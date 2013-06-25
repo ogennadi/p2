@@ -17,8 +17,8 @@
 #define NUM_SRC_REGS 2
 #define NUM_REGISTERS 32
 
-#define VERBOSE 0
-#define EXPERIMENT 1
+#define VERBOSE 1
+#define EXPERIMENT 0
 
 using namespace std;
 

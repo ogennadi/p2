@@ -219,17 +219,9 @@ void execute()
   }
 }
 
-//returns true if the dest_reg_tag of first is less than second
-bool compare_tag(reservation_station *first, reservation_station *second)
-{
-  return first->dest_reg_tag < second->dest_reg_tag;
-}
-
 // state update stage
 void state_update()
 {
-  state_update_q.sort(compare_tag);
-
   while(!state_update_q.empty())
   {
     reservation_station *rs = state_update_q.front();
