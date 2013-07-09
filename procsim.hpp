@@ -61,9 +61,13 @@ void setup_proc(FILE* in_file, int d, int k0, int k1, int k2, int f, int m);
 void run_proc(proc_stats_t* p_stats);
 void delete_from_schedule_q();
 void fetch();
+void dispatch();
 void complete_proc(proc_stats_t* p_stats);
 
 int dispatch_q_size();
+int schedule_q_size();
+bool in_disp(proc_inst_t *instr);
+bool in_sched(proc_inst_t *instr);
 bool schedule_q_free(int fu_type);
 void dout(const char* fmt, ...);
 void debug();

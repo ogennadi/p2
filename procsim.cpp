@@ -25,6 +25,7 @@ bool    debug_mode; // whether to run in debug mode
 list<proc_inst_t>   dispatch_q;
 typedef             list<proc_inst_t>::iterator dispatch_q_iterator ;
 int           DISPATCH_Q_MAX;
+int           SCHEDULE_Q_MAX;
 
 const int FETCH = 0;
 const int DISP  = 1;
@@ -59,6 +60,7 @@ void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int i
   m     = im;
   in_file = iin_file;
   DISPATCH_Q_MAX = d*(m*k0 + m*k1 + m*k2);
+  SCHEDULE_Q_MAX = m*k0 + m*k1 + m*k2;
 }
 
 
@@ -73,6 +75,7 @@ void run_proc(proc_stats_t* p_stats)
   do
   {
     delete_from_schedule_q();
+    dispatch();
     fetch();
 
     if(debug_mode)
@@ -102,6 +105,20 @@ void fetch()
 
 void dispatch()
 {
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);
+
+    if(in_disp(instr))
+    {
+      if(schedule_q_size() < SCHEDULE_Q_MAX)
+      {
+        instr->sched_t = cycle + 1; 
+      }else{
+        return;
+      }
+    }
+  }
 }
 
 void schedule()
@@ -127,7 +144,33 @@ void delete_from_schedule_q()
   }
 }
 
-// Counts unscheduled instructions
+bool in_disp(proc_inst_t *instr)
+{
+  return instr->disp_t != NO_TIME && instr->sched_t == NO_TIME;
+}
+
+bool in_sched(proc_inst_t *instr)
+{
+  return instr->sched_t != NO_TIME && instr->exec_t == NO_TIME;
+}
+
+int schedule_q_size()
+{
+  int count = 0;
+
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);
+
+    if(in_sched(instr))
+    {
+      count++;
+    }
+  }
+
+  return count;
+}
+
 int dispatch_q_size()
 {
   int unscheduled = 0;
@@ -136,7 +179,7 @@ int dispatch_q_size()
   {
     proc_inst_t *instr = (*ix);
 
-    if(instr->sched_t == NO_TIME)
+    if(in_disp(instr))
     {
       unscheduled++;
     }
@@ -145,9 +188,6 @@ int dispatch_q_size()
   return unscheduled;
 }
 
-//
-// read_instruction
-//
 proc_inst_t* read_instruction()
 {
     proc_inst_t *p_inst = new proc_inst_t();
