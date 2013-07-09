@@ -62,8 +62,12 @@ void run_proc(proc_stats_t* p_stats);
 void delete_from_schedule_q();
 void fetch();
 void dispatch();
+void schedule();
 void complete_proc(proc_stats_t* p_stats);
 
+bool rf_ready(proc_inst_t *in, int reg);
+bool fu_ready(int fu);
+int fu(proc_inst_t *in);
 int dispatch_q_size();
 int schedule_q_size();
 bool in_disp(proc_inst_t *instr);

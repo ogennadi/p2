@@ -79,6 +79,7 @@ void run_proc(proc_stats_t* p_stats)
   do
   {
     delete_from_schedule_q();
+    schedule();
     dispatch();
     fetch();
 
@@ -127,6 +128,20 @@ void dispatch()
 
 void schedule()
 {
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);
+
+    if(in_sched(instr) &&
+       fu_ready(fu(instr)) &&
+       rf_ready(instr, instr->src_reg[0]) &&
+       rf_ready(instr, instr->src_reg[1]))
+    {
+      const int FU_DELAY[] = {1, 2, 3};
+      instr->exec_t   = cycle + 1;
+      instr->state_t  = cycle + FU_DELAY[fu(instr)] + 1;
+    }
+  }
 }
 
 void delete_from_schedule_q()
@@ -135,7 +150,7 @@ void delete_from_schedule_q()
   {
     proc_inst_t *instr = (*ix);   
 
-    if(cycle >= instr->state_t + 1)
+    if((instr->state_t != NO_TIME) && (cycle >= instr->state_t + 1))
     {
       dout("%i\t%i\t%i\t%i\t%i\t%i\t\n", instr->line_number, 
                                          instr->fetch_t,
@@ -146,6 +161,57 @@ void delete_from_schedule_q()
       instr_q.erase(ix++);
     }
   }
+}
+
+// Whether REG is ready to be read by instruction, IN
+bool rf_ready(proc_inst_t *in, int reg)
+{
+  if(reg == -1)
+  {
+    return true;
+  }
+
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);   
+    
+    if(instr == in)
+    {
+      continue;
+    }
+
+    if((instr->dest_reg == reg) &&
+       ((instr->state_t > cycle) || (instr->state_t == NO_TIME)))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Whether the FU's scoreboard says "busy" or not
+bool fu_ready(int fu_type)
+{
+  int entered_exec_this_cycle = 0;
+
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);   
+    int instr_fu        = fu(instr);
+
+    if(fu_type == instr_fu && instr->exec_t == cycle)
+    {
+      entered_exec_this_cycle++;
+    }
+
+    if(entered_exec_this_cycle >= NUM_FUS[instr_fu])
+    {
+      return false; 
+    }
+  }
+
+  return true;
 }
 
 // Returns the functional unit to handle this instruction
@@ -173,7 +239,9 @@ bool schedule_q_free_for(proc_inst_t *in)
       count++;
     }
 
-    if(count >= NUM_FUS[fu(in)])
+    int NUM_RESERVATION_STATIONS[] = {m*k0, m*k1, m*k2};
+    
+    if(count >= NUM_RESERVATION_STATIONS[fu(in)])
     {
       return false;
     }
@@ -274,10 +342,24 @@ void eout(const char* fmt, ...)
 void debug()
 {
   show_cycle();
+
+
+  //for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  //{
+  //  proc_inst_t *instr = (*ix);   
+
+  //    dout("%i\t%i\t%i\t%i\t%i\t%i\t\n", instr->line_number, 
+  //                                       instr->fetch_t,
+  //                                       instr->disp_t,
+  //                                       instr->sched_t,
+  //                                       instr->exec_t,
+  //                                       instr->state_t);
+  //}
+
   show_dispatch_q();
   show_schedule_q();
   //show_register_file();
-  show_function_units();
+  //show_function_units();
 
   // pause for input
   char c;
@@ -294,27 +376,32 @@ void show_cycle()
 void show_dispatch_q()
 {
   printf("dispatch Q: ");
-
-  for(dispatch_q_iterator ix = dispatch_q.begin();
-      ix != dispatch_q.end();
-      ++ix)
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
   {
-    printf("%i ", (*ix).line_number);
+    proc_inst_t *instr = (*ix);
+
+    if(in_disp(instr))
+    {
+      printf("%i ", instr->line_number);
+    }
   }
+
   dout("\n");
 }
 
 void show_schedule_q()
 {
   dout("schedule Q: \n");
-  dout("FU\tD Tag\tD\tS1 Ry\tS1 tag\tS2 Ry\tS2 tag\tIssued\n");
+  dout("I\tFU\tD\tS1 reg\tS1 rdy\tS2 reg\tS2 rdy\n");
 
-  for(schedule_q_iterator ix = schedule_q.begin();
-      ix != schedule_q.end();
-      ++ix)
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
   {
-    reservation_station *rs = (*ix);
-    dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\n", rs->function_unit, rs->dest_reg_tag, rs->dest_reg, rs->src[0].ready, rs->src[0].tag, rs->src[1].ready, rs->src[1].tag, rs->issued);
+    proc_inst_t *instr = (*ix);
+
+    if(in_sched(instr))
+    {
+      dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\n", instr->line_number, instr->op_code, instr->dest_reg, instr->src_reg[0], rf_ready(instr, instr->src_reg[0]), instr->src_reg[1], rf_ready(instr, instr->src_reg[1]));
+    }
   }
 }
 
