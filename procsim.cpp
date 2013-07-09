@@ -7,12 +7,6 @@
 #include "RegisterFile.hpp"
 #include "reservation_station.hpp"
 
-#define FETCH 0
-#define DISP 1
-#define SCHED 2
-#define EXEC 3
-#define STATE 4
-
 #define K0_STAGES 1
 #define K1_STAGES 2
 #define K2_STAGES 3
@@ -28,27 +22,24 @@ int d;
 FILE*     in_file;
 bool    debug_mode; // whether to run in debug mode
 
-list<proc_inst_t>  dispatch_q;
+list<proc_inst_t>   dispatch_q;
 typedef             list<proc_inst_t>::iterator dispatch_q_iterator ;
-unsigned int            dispatch_q_size;
+int           DISPATCH_Q_MAX;
+
+const int FETCH = 0;
+const int DISP  = 1;
+const int SCHED = 2;
+const int EXEC  = 3;
+const int STATE = 4;
 
 list<reservation_station*> schedule_q;
 typedef list<reservation_station*>::iterator schedule_q_iterator ;
 
 RegisterFile      register_file;
-vector<FunctionUnitBank>  function_unit;
 
-class RSCompare
-{
-  public:
-  bool operator()(reservation_station*& r1, reservation_station*& r2)
-  {
-    return r1->dest_reg_tag > r2->dest_reg_tag;
-  }
-};
-
+list<proc_inst_t*> instr_q;
+typedef           list<proc_inst_t*>::iterator instr_q_iterator;
 list<reservation_station*> state_update_q;
-priority_queue<reservation_station*, vector<reservation_station*>, RSCompare> rob;
 
 static int  line_number = 1;
 
@@ -67,225 +58,9 @@ void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int i
   f     = fi;
   m     = im;
   in_file = iin_file;
-  dispatch_q_size = d*(m*k0 + m*k1 + m*k2);
-
-  function_unit.push_back(FunctionUnitBank(ik0, K0_STAGES));
-  function_unit.push_back(FunctionUnitBank(ik1, K1_STAGES));
-  function_unit.push_back(FunctionUnitBank(ik2, K2_STAGES));
-}
-//
-// read_instruction
-//
-proc_inst_t read_instruction()
-{
-    proc_inst_t p_inst;
-    int         ret = fscanf(in_file, "%x %d %d %d %d", &p_inst.instruction_address,
-                      &p_inst.op_code, &p_inst.dest_reg, &p_inst.src_reg[0], &p_inst.src_reg[1]); 
-
-    if (ret != 5){
-      p_inst.null = true;
-      return p_inst;
-    }else{
-      p_inst.null = false;
-    }
-
-    char debug_mark[3];
-    fgets(debug_mark, 3, in_file);
-
-    if(debug_mark != NULL && strlen(debug_mark) > 1)
-    {
-      debug_mode = true;
-    }
-    
-    p_inst.line_number = line_number;
-    line_number++;
-    return p_inst;
+  DISPATCH_Q_MAX = d*(m*k0 + m*k1 + m*k2);
 }
 
-// Fetch stage
-void fetch()
-{
-  for(int i = 0; i < f && dispatch_q.size() < dispatch_q_size; i++)
-  {
-    proc_inst_t inst = read_instruction();
-    
-    if(inst.null){
-      return;
-    }else{
-      inst.entry_time[FETCH]  = cycle;
-      inst.entry_time[DISP]   = cycle+1;
-      dispatch_q.push_back(inst);
-    }
-  }
-}
-
-// dispatch stage
-void dispatch()
-{
-  dispatch_q_iterator ix = dispatch_q.begin();
-
-  while(ix != dispatch_q.end())
-  {
-    proc_inst_t inst  = (*ix);
-    int fu_type       = inst.op_code == -1 ? 0 : inst.op_code;
-
-    if(schedule_q_free(fu_type))
-    {
-      reservation_station *rs = new reservation_station;
-      rs->instruction         = inst;
-      ix                      = dispatch_q.erase(ix);
-      rs->function_unit       = fu_type;
-      rs->dest_reg            = inst.dest_reg;
-      
-      for(int i = 0; i < NUM_SRC_REGS; i++)
-      {
-        if(register_file.ready(inst.src_reg[i]))
-        {
-          rs->src[i].ready = true;
-        }else{
-          rs->src[i].tag   = register_file.tag(inst.src_reg[i]);
-          rs->src[i].ready = false;
-        }
-      }
-
-      register_file.set_tag(inst.dest_reg, inst.line_number);
-
-      if(inst.dest_reg == -1)
-      {
-        rs->dest_reg_tag = inst.line_number;
-      }else{
-        rs->dest_reg_tag = register_file.tag(inst.dest_reg);
-        register_file.set_ready(inst.dest_reg, false);
-      }
-
-      rs->instruction.entry_time[SCHED] = cycle + 1;
-      schedule_q.push_back(rs);
-    }else{
-      break;
-    }
-  }
-}
-
-// Schedule stage
-void schedule()
-{
-  for(schedule_q_iterator ix = schedule_q.begin();
-      ix != schedule_q.end();
-      ix++)
-  {
-    reservation_station *rs = (*ix);
-
-    if(rs->src[0].ready && 
-       rs->src[1].ready &&
-       !function_unit[rs->function_unit].busy() &&
-       !rs->issued)
-    {
-      function_unit[rs->function_unit].issue(rs->dest_reg_tag);
-      rs->issued = true;
-      rs->instruction.entry_time[SCHED] = cycle;
-      rs->instruction.entry_time[EXEC]  = cycle+1;
-    }
-  }
-}
-
-// execute stage
-void execute()
-{
-  vector<int> completed_tags;
-
-  for(unsigned int i = 0; i < function_unit.size(); i++)
-  {
-    vector<int> tmp =  function_unit[i].completed_tags();
-    completed_tags.insert(completed_tags.end(), tmp.begin(), tmp.end());
-    function_unit[i].execute();
-  }
-
-  // delete tags from schedule q and add them to the state update q
-  for(unsigned int i = 0; i < completed_tags.size(); i++)
-  {
-    for(schedule_q_iterator ix = schedule_q.begin();
-        ix != schedule_q.end();
-        ++ix)
-    {
-      reservation_station *rs = *ix;
-
-      if(rs->dest_reg_tag == completed_tags[i])
-      {
-        state_update_q.push_back(rs);
-        schedule_q.erase(ix);
-        break;
-      }
-    }
-  }
-}
-
-// state update stage
-void state_update()
-{
-  while(!state_update_q.empty())
-  {
-    reservation_station *rs = state_update_q.front();
-    rs->instruction.entry_time[STATE] = cycle;
-    register_file.set_tag_ready(rs->dest_reg_tag);
-
-    for(schedule_q_iterator ix = schedule_q.begin();
-        ix != schedule_q.end();
-        ++ix)
-    {
-      
-      reservation_station *rs1 = (*ix);
-
-      for(int i = 0; i < 2; i++)
-      {
-        if(rs1->src[i].tag == rs->dest_reg_tag)
-        {
-          rs1->src[i].ready = true;
-        }
-      }
-    }
-
-    rob.push(rs);
-    state_update_q.pop_front();
-  }
-}
-
-// Output executed instructions to screen in source order
-void commit()
-{
-  static int commit_next = 1;
-  reservation_station *rob_top;
-
-  while(!rob.empty() && (rob_top = rob.top())->dest_reg_tag == commit_next)
-  {
-    proc_inst_t i = rob_top->instruction;
-    dout("%i\t%i\t%i\t%i\t%i\t%i\n", i.line_number, i.entry_time[FETCH], i.entry_time[DISP], i.entry_time[SCHED], i.entry_time[EXEC], i.entry_time[STATE]);
-    commit_next++;
-    delete rob_top;
-    rob.pop();
-  }
-}
-
-// Returns true if there is space in schedule queue for instructions of type
-// FU_TYPE
-bool schedule_q_free(int fu_type)
-{
-  int count = 0;
-  int queue_sizes[3] = {m*k0, m*k1, m*k2};
-
-  for(schedule_q_iterator ix = schedule_q.begin();
-      ix != schedule_q.end();
-      ++ix)
-  {
-    reservation_station *rs = (*ix);
-    
-    if(rs->function_unit == fu_type)
-    {
-      count++;
-    }
-  }
-
-  return count < queue_sizes[fu_type];
-}
 
 /**
  * Subroutine that simulates the processor.
@@ -297,11 +72,7 @@ void run_proc(proc_stats_t* p_stats)
 
   do
   {
-    commit();
-    state_update();
-    execute();
-    schedule();
-    dispatch();
+    delete_from_schedule_q();
     fetch();
 
     if(debug_mode)
@@ -310,10 +81,97 @@ void run_proc(proc_stats_t* p_stats)
     }
 
     cycle++;
-  }while(!(schedule_q.empty() &&
-            dispatch_q.empty() &&
-            state_update_q.empty() &&
-            rob.empty()));
+  }while(!(instr_q.empty()));
+}
+
+void fetch()
+{
+  for(int i = 0; i < f && dispatch_q_size() < DISPATCH_Q_MAX; i++)
+  {
+    proc_inst_t *instr = read_instruction();
+
+    if(instr->null){
+      return;
+    }else{
+      instr_q.push_back(instr);
+      instr->fetch_t = cycle;
+      instr->disp_t  = cycle+1;
+    }
+  }
+}
+
+void dispatch()
+{
+}
+
+void schedule()
+{
+}
+
+void delete_from_schedule_q()
+{
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);   
+
+    if(cycle >= instr->state_t + 1)
+    {
+      dout("%i\t%i\t%i\t%i\t%i\t%i\t\n", instr->line_number, 
+                                         instr->fetch_t,
+                                         instr->disp_t,
+                                         instr->sched_t,
+                                         instr->exec_t,
+                                         instr->state_t);
+      instr_q.erase(ix++);
+    }
+  }
+}
+
+// Counts unscheduled instructions
+int dispatch_q_size()
+{
+  int unscheduled = 0;
+
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);
+
+    if(instr->sched_t == NO_TIME)
+    {
+      unscheduled++;
+    }
+  }
+
+  return unscheduled;
+}
+
+//
+// read_instruction
+//
+proc_inst_t* read_instruction()
+{
+    proc_inst_t *p_inst = new proc_inst_t();
+    int         ret = fscanf(in_file, "%x %d %d %d %d", &p_inst->instruction_address,
+                      &p_inst->op_code, &p_inst->dest_reg, &p_inst->src_reg[0], &p_inst->src_reg[1]); 
+
+    if (ret != 5){
+      p_inst->null = true;
+      return p_inst;
+    }else{
+      p_inst->null = false;
+    }
+
+    char debug_mark[3];
+    fgets(debug_mark, 3, in_file);
+
+    if(debug_mark != NULL && strlen(debug_mark) > 1)
+    {
+      debug_mode = true;
+    }
+    
+    p_inst->line_number = line_number;
+    line_number++;
+    return p_inst;
 }
 
 /**
@@ -413,20 +271,6 @@ void show_register_file()
 void show_function_units()
 {
   dout("Function Units\n");
-  for(unsigned int i = 0; i < function_unit.size(); i++)
-  {
-    for(unsigned int j = 0; j < function_unit[i].function_unit.size(); j++)
-    {
-      dout("k%u_%u: ", i, j);
-      
-      for(unsigned int k = 0; k < function_unit[i].function_unit[j].size(); k++)
-      {
-        dout("%i ", function_unit[i].function_unit[j][k]);
-      }
-
-      dout("\n");
-    }
-  }
 }
 
 void print_statistics(proc_stats_t* p_stats) {

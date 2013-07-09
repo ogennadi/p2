@@ -1,3 +1,5 @@
 procsim
 *.o
 traces/fakegcc.trace
+*.odt
+*.csv

@@ -20,6 +20,8 @@
 #define VERBOSE 1
 #define EXPERIMENT 0
 
+const int NO_TIME = -1;
+
 using namespace std;
 
 struct proc_inst_t
@@ -30,7 +32,20 @@ struct proc_inst_t
     int src_reg[NUM_SRC_REGS];
     int dest_reg;
     bool    null;  // whether this is a malformed or nonexistent instruction
-    int  entry_time[5];
+    int fetch_t;
+    int disp_t;
+    int sched_t;
+    int exec_t;
+    int state_t;
+
+    proc_inst_t()
+    {
+      fetch_t	= NO_TIME;
+      disp_t	= NO_TIME;
+      sched_t	= NO_TIME;
+      exec_t	= NO_TIME;
+      state_t	= NO_TIME;
+    }
 };
 
 typedef struct _proc_stats_t
@@ -40,12 +55,15 @@ typedef struct _proc_stats_t
     unsigned long cycle_count;
 } proc_stats_t;
 
-proc_inst_t read_instruction();
+proc_inst_t* read_instruction();
 
 void setup_proc(FILE* in_file, int d, int k0, int k1, int k2, int f, int m);
 void run_proc(proc_stats_t* p_stats);
+void delete_from_schedule_q();
+void fetch();
 void complete_proc(proc_stats_t* p_stats);
 
+int dispatch_q_size();
 bool schedule_q_free(int fu_type);
 void dout(const char* fmt, ...);
 void debug();
