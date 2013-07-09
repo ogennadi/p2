@@ -26,6 +26,7 @@ list<proc_inst_t>   dispatch_q;
 typedef             list<proc_inst_t>::iterator dispatch_q_iterator ;
 int           DISPATCH_Q_MAX;
 int           SCHEDULE_Q_MAX;
+int           NUM_FUS[3];
 
 const int FETCH = 0;
 const int DISP  = 1;
@@ -61,6 +62,9 @@ void setup_proc(FILE* iin_file, int id, int ik0, int ik1, int ik2, int fi, int i
   in_file = iin_file;
   DISPATCH_Q_MAX = d*(m*k0 + m*k1 + m*k2);
   SCHEDULE_Q_MAX = m*k0 + m*k1 + m*k2;
+  NUM_FUS[0] = k0;
+  NUM_FUS[1] = k1;
+  NUM_FUS[2] = k2;
 }
 
 
@@ -111,7 +115,7 @@ void dispatch()
 
     if(in_disp(instr))
     {
-      if(schedule_q_size() < SCHEDULE_Q_MAX)
+      if(schedule_q_free_for(instr))
       {
         instr->sched_t = cycle + 1; 
       }else{
@@ -144,6 +148,40 @@ void delete_from_schedule_q()
   }
 }
 
+// Returns the functional unit to handle this instruction
+int fu(proc_inst_t *in)
+{
+  if(in->op_code == -1)
+  {
+    return 0;
+  }
+
+  return in->op_code;
+}
+
+// Returns whether INSTR has space in the sched Q for its op type
+bool schedule_q_free_for(proc_inst_t *in)
+{
+  int count = 0;
+
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);
+    
+    if(in_sched(instr) && fu(instr) == fu(in))
+    {
+      count++;
+    }
+
+    if(count >= NUM_FUS[fu(in)])
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 bool in_disp(proc_inst_t *instr)
 {
   return instr->disp_t != NO_TIME && instr->sched_t == NO_TIME;
@@ -152,23 +190,6 @@ bool in_disp(proc_inst_t *instr)
 bool in_sched(proc_inst_t *instr)
 {
   return instr->sched_t != NO_TIME && instr->exec_t == NO_TIME;
-}
-
-int schedule_q_size()
-{
-  int count = 0;
-
-  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
-  {
-    proc_inst_t *instr = (*ix);
-
-    if(in_sched(instr))
-    {
-      count++;
-    }
-  }
-
-  return count;
 }
 
 int dispatch_q_size()
