@@ -28,20 +28,9 @@ int           DISPATCH_Q_MAX;
 int           SCHEDULE_Q_MAX;
 int           NUM_FUS[3];
 
-const int FETCH = 0;
-const int DISP  = 1;
-const int SCHED = 2;
-const int EXEC  = 3;
-const int STATE = 4;
-
-list<reservation_station*> schedule_q;
-typedef list<reservation_station*>::iterator schedule_q_iterator ;
-
-RegisterFile      register_file;
 
 list<proc_inst_t*> instr_q;
 typedef           list<proc_inst_t*>::iterator instr_q_iterator;
-list<reservation_station*> state_update_q;
 
 static int  line_number = 1;
 
@@ -133,10 +122,12 @@ void schedule()
     proc_inst_t *instr = (*ix);
 
     if(in_sched(instr) &&
+       !(instr->issued) &&
        fu_ready(fu(instr)) &&
        rf_ready(instr, instr->src_reg[0]) &&
        rf_ready(instr, instr->src_reg[1]))
     {
+      instr->issued = true;
       const int FU_DELAY[] = {1, 2, 3};
       instr->exec_t   = cycle + 1;
       instr->state_t  = cycle + FU_DELAY[fu(instr)] + 1;
@@ -174,13 +165,9 @@ bool rf_ready(proc_inst_t *in, int reg)
   for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
   {
     proc_inst_t *instr = (*ix);   
-    
-    if(instr == in)
-    {
-      continue;
-    }
 
-    if((instr->dest_reg == reg) &&
+    if((instr->line_number < in->line_number) &&
+       (instr->dest_reg == reg) &&
        ((instr->state_t > cycle) || (instr->state_t == NO_TIME)))
     {
       return false;
@@ -252,12 +239,12 @@ bool schedule_q_free_for(proc_inst_t *in)
 
 bool in_disp(proc_inst_t *instr)
 {
-  return instr->disp_t != NO_TIME && instr->sched_t == NO_TIME;
+  return (instr->disp_t <= cycle) && ((instr->sched_t == NO_TIME) || (instr->sched_t > cycle));
 }
 
 bool in_sched(proc_inst_t *instr)
 {
-  return instr->sched_t != NO_TIME && instr->exec_t == NO_TIME;
+  return !(in_disp(instr)) && instr->sched_t <= cycle;
 }
 
 int dispatch_q_size()
@@ -342,20 +329,7 @@ void eout(const char* fmt, ...)
 void debug()
 {
   show_cycle();
-
-
-  //for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
-  //{
-  //  proc_inst_t *instr = (*ix);   
-
-  //    dout("%i\t%i\t%i\t%i\t%i\t%i\t\n", instr->line_number, 
-  //                                       instr->fetch_t,
-  //                                       instr->disp_t,
-  //                                       instr->sched_t,
-  //                                       instr->exec_t,
-  //                                       instr->state_t);
-  //}
-
+  show_instruction_q();
   show_dispatch_q();
   show_schedule_q();
   //show_register_file();
@@ -392,7 +366,7 @@ void show_dispatch_q()
 void show_schedule_q()
 {
   dout("schedule Q: \n");
-  dout("I\tFU\tD\tS1 reg\tS1 rdy\tS2 reg\tS2 rdy\n");
+  dout("I\tFU\tD\tS1 reg\tS1 rdy\tS2 reg\tS2 rdy\tIssued\n");
 
   for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
   {
@@ -400,7 +374,7 @@ void show_schedule_q()
 
     if(in_sched(instr))
     {
-      dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\n", instr->line_number, instr->op_code, instr->dest_reg, instr->src_reg[0], rf_ready(instr, instr->src_reg[0]), instr->src_reg[1], rf_ready(instr, instr->src_reg[1]));
+      dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\n", instr->line_number, instr->op_code, instr->dest_reg, instr->src_reg[0], rf_ready(instr, instr->src_reg[0]), instr->src_reg[1], rf_ready(instr, instr->src_reg[1]), instr->issued);
     }
   }
 }
@@ -409,16 +383,26 @@ void show_register_file()
 {
   dout("register file:\n");
   dout("Reg\tReady\tTag\n");
-
-  for(int i = 0; i < NUM_REGISTERS; i++)
-  {
-    dout("%i\t%i\t%i\n", i , register_file.ready(i), register_file.tag(i));
-  }
 }
 
 void show_function_units()
 {
   dout("Function Units\n");
+}
+
+void show_instruction_q()
+{
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  {
+    proc_inst_t *instr = (*ix);   
+
+      dout("%i\t%i\t%i\t%i\t%i\t%i\t\n", instr->line_number, 
+                                         instr->fetch_t,
+                                         instr->disp_t,
+                                         instr->sched_t,
+                                         instr->exec_t,
+                                         instr->state_t);
+  }
 }
 
 void print_statistics(proc_stats_t* p_stats) {

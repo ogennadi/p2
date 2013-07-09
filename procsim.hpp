@@ -37,6 +37,7 @@ struct proc_inst_t
     int sched_t;
     int exec_t;
     int state_t;
+    bool issued;
 
     proc_inst_t()
     {
@@ -45,6 +46,7 @@ struct proc_inst_t
       sched_t	= NO_TIME;
       exec_t	= NO_TIME;
       state_t	= NO_TIME;
+      issued = false;
     }
 };
 
@@ -78,6 +80,7 @@ void debug();
 void show_cycle();
 void show_dispatch_q();
 void show_schedule_q();
+void show_instruction_q();
 void show_register_file();
 void show_function_units();
 
