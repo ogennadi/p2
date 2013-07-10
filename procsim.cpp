@@ -99,7 +99,7 @@ void fetch()
 
 void dispatch()
 {
-  int dispatched[] = {0, 0, 0};
+  int num_dispatched[] = {0, 0, 0};
   int NUM_RESERVATION_STATIONS[] = {m*k0, m*k1, m*k2};
 
   for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
@@ -108,11 +108,11 @@ void dispatch()
 
     if(in_disp(instr))
     {
-      if(schedule_q_size_for(instr) + dispatched[fu(instr)] <
+      if(schedule_q_size_for(instr) + num_dispatched[fu(instr)] <
           NUM_RESERVATION_STATIONS[fu(instr)])
       {
         instr->sched_t = cycle + 1; 
-        dispatched[fu(instr)]++;
+        num_dispatched[fu(instr)]++;
       }else{
         return;
       }
@@ -143,7 +143,7 @@ void schedule()
 
 void delete_from_schedule_q()
 {
-  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); )
   {
     proc_inst_t *instr = (*ix);
 
@@ -156,6 +156,8 @@ void delete_from_schedule_q()
                                          instr->exec_t,
                                          instr->state_t);
       instr_q.erase(ix++);
+    }else{
+      ix++;
     }
   }
 }
