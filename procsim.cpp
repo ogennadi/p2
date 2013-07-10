@@ -3,6 +3,10 @@
 #include <queue>
 #include "procsim.hpp"
 
+#define NUM_REGISTERS 32
+#define VERBOSE 1
+#define EXPERIMENT 0
+
 // Simulator variables
 int cycle;
 int f;
@@ -135,11 +139,13 @@ void schedule()
 
 void delete_from_schedule_q()
 {
-  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); )
+  static int rob_head = 1;
+
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ix++)
   {
     proc_inst_t *instr = (*ix);
-
-    if((instr->state_t != NO_TIME) && (cycle >= instr->state_t + 1))
+    
+    if(instr->deleted && instr->line_number == rob_head)
     {
       dout("%i\t%i\t%i\t%i\t%i\t%i\t\n", instr->line_number, 
                                          instr->fetch_t,
@@ -147,9 +153,20 @@ void delete_from_schedule_q()
                                          instr->sched_t,
                                          instr->exec_t,
                                          instr->state_t);
+      rob_head++;
       instr_q.erase(ix++);
     }else{
-      ix++;
+      break;
+    }
+  }
+
+  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ix++)
+  {
+    proc_inst_t *instr = (*ix);
+
+    if((instr->state_t != NO_TIME) && (cycle >= instr->state_t + 1))
+    {
+      instr->deleted = true;
     }
   }
 }
@@ -237,7 +254,7 @@ bool in_disp(proc_inst_t *instr)
 
 bool in_sched(proc_inst_t *instr)
 {
-  return !(in_disp(instr)) && instr->sched_t != NO_TIME;
+  return !(in_disp(instr)) && instr->sched_t != NO_TIME && !instr->deleted;
 }
 
 int dispatch_q_size()
@@ -376,6 +393,23 @@ void show_register_file()
 {
   dout("register file:\n");
   dout("Reg\tReady\tTag\n");
+
+  //for(int reg  = 0; reg < 32; reg++)
+  //{
+  //  for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
+  //  {
+  //    proc_inst_t *instr = (*ix);   
+
+  //    if((instr->line_number < in->line_number) &&
+  //       (instr->dest_reg == reg) &&
+  //       ((instr->state_t > cycle) || (instr->state_t == NO_TIME)))
+  //    {
+  //      return false;
+
+
+  //    }
+  //  }
+  //}
 }
 
 void show_function_units()

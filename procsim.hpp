@@ -14,12 +14,6 @@
 #define DEFAULT_M 2
 #define DEFAULT_F 4
 
-#define NUM_SRC_REGS 2
-#define NUM_REGISTERS 32
-
-#define VERBOSE 1
-#define EXPERIMENT 0
-
 const int NO_TIME = -1;
 
 using namespace std;
@@ -29,7 +23,7 @@ struct proc_inst_t
     int instruction_address;
     int line_number;
     int op_code;
-    int src_reg[NUM_SRC_REGS];
+    int src_reg[2];
     int dest_reg;
     bool    null;  // whether this is a malformed or nonexistent instruction
     int fetch_t;
@@ -38,6 +32,7 @@ struct proc_inst_t
     int exec_t;
     int state_t;
     bool issued;
+    bool deleted;
 
     proc_inst_t()
     {
@@ -47,6 +42,7 @@ struct proc_inst_t
       exec_t	= NO_TIME;
       state_t	= NO_TIME;
       issued = false;
+      deleted = false;
     }
 };
 
