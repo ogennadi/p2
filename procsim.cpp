@@ -1,15 +1,7 @@
 #include <cstdarg>
 #include <list>
 #include <queue>
-#include <vector>
 #include "procsim.hpp"
-#include "FunctionUnitBank.hpp"
-#include "RegisterFile.hpp"
-#include "reservation_station.hpp"
-
-#define K0_STAGES 1
-#define K1_STAGES 2
-#define K2_STAGES 3
 
 // Simulator variables
 int cycle;
