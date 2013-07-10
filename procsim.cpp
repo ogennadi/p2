@@ -99,15 +99,20 @@ void fetch()
 
 void dispatch()
 {
+  int dispatched[] = {0, 0, 0};
+  int NUM_RESERVATION_STATIONS[] = {m*k0, m*k1, m*k2};
+
   for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
   {
     proc_inst_t *instr = (*ix);
 
     if(in_disp(instr))
     {
-      if(schedule_q_free_for(instr))
+      if(schedule_q_size_for(instr) + dispatched[fu(instr)] <
+          NUM_RESERVATION_STATIONS[fu(instr)])
       {
         instr->sched_t = cycle + 1; 
+        dispatched[fu(instr)]++;
       }else{
         return;
       }
@@ -127,6 +132,7 @@ void schedule()
        rf_ready(instr, instr->src_reg[0]) &&
        rf_ready(instr, instr->src_reg[1]))
     {
+
       instr->issued = true;
       const int FU_DELAY[] = {1, 2, 3};
       instr->exec_t   = cycle + 1;
@@ -139,7 +145,7 @@ void delete_from_schedule_q()
 {
   for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
   {
-    proc_inst_t *instr = (*ix);   
+    proc_inst_t *instr = (*ix);
 
     if((instr->state_t != NO_TIME) && (cycle >= instr->state_t + 1))
     {
@@ -185,14 +191,14 @@ bool fu_ready(int fu_type)
   for(instr_q_iterator ix = instr_q.begin(); ix != instr_q.end(); ++ix)
   {
     proc_inst_t *instr = (*ix);   
-    int instr_fu        = fu(instr);
+    int instr_fu       = fu(instr);
 
-    if(fu_type == instr_fu && instr->exec_t == cycle)
+    if(fu_type == instr_fu && instr->exec_t == cycle+1)
     {
       entered_exec_this_cycle++;
     }
 
-    if(entered_exec_this_cycle >= NUM_FUS[instr_fu])
+    if(entered_exec_this_cycle >= NUM_FUS[fu_type])
     {
       return false; 
     }
@@ -212,8 +218,8 @@ int fu(proc_inst_t *in)
   return in->op_code;
 }
 
-// Returns whether INSTR has space in the sched Q for its op type
-bool schedule_q_free_for(proc_inst_t *in)
+// number of sched Q entries for instructions of IN's type
+int schedule_q_size_for(proc_inst_t *in)
 {
   int count = 0;
 
@@ -225,16 +231,9 @@ bool schedule_q_free_for(proc_inst_t *in)
     {
       count++;
     }
-
-    int NUM_RESERVATION_STATIONS[] = {m*k0, m*k1, m*k2};
-    
-    if(count >= NUM_RESERVATION_STATIONS[fu(in)])
-    {
-      return false;
-    }
   }
 
-  return true;
+  return count;
 }
 
 bool in_disp(proc_inst_t *instr)
@@ -244,7 +243,7 @@ bool in_disp(proc_inst_t *instr)
 
 bool in_sched(proc_inst_t *instr)
 {
-  return !(in_disp(instr)) && instr->sched_t <= cycle;
+  return !(in_disp(instr)) && instr->sched_t != NO_TIME;
 }
 
 int dispatch_q_size()
@@ -374,7 +373,7 @@ void show_schedule_q()
 
     if(in_sched(instr))
     {
-      dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\n", instr->line_number, instr->op_code, instr->dest_reg, instr->src_reg[0], rf_ready(instr, instr->src_reg[0]), instr->src_reg[1], rf_ready(instr, instr->src_reg[1]), instr->issued);
+      dout("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\n", instr->line_number, fu(instr), instr->dest_reg, instr->src_reg[0], rf_ready(instr, instr->src_reg[0]), instr->src_reg[1], rf_ready(instr, instr->src_reg[1]), instr->issued);
     }
   }
 }

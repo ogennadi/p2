@@ -74,7 +74,7 @@ int dispatch_q_size();
 int schedule_q_size();
 bool in_disp(proc_inst_t *instr);
 bool in_sched(proc_inst_t *instr);
-bool schedule_q_free_for(proc_inst_t *in);
+int schedule_q_size_for(proc_inst_t *in);
 void dout(const char* fmt, ...);
 void debug();
 void show_cycle();
